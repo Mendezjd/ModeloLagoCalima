@@ -1,55 +1,64 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Visualizador 3D Móvil</title>
+    <title>Visualizador 3D con Fondo Difuminado</title>
 
-    <!-- THREE.js y extensiones -->
     <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/loaders/GLTFLoader.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/loaders/EXRLoader.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
 
     <style>
-        body { margin: 0; overflow: hidden; }
+        body { margin: 0; overflow: hidden; background-color: #202020; }
         canvas { display: block; }
     </style>
 </head>
 <body>
 <script>
-    // Escena, cámara y renderer
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(window.devicePixelRatio);
     document.body.appendChild(renderer.domElement);
 
-    // Cargar imagen EXR como entorno
+    // Cargar la imagen EXR
     const exrLoader = new THREE.EXRLoader();
     exrLoader.load('Kiara1.exr', function (texture) {
         texture.mapping = THREE.EquirectangularReflectionMapping;
         scene.environment = texture;
-        scene.background = texture; // puedes comentar esta línea si no quieres fondo visible
+
+        // Crear esfera gigante invertida para fondo difuminado
+        const geometry = new THREE.SphereGeometry(500, 60, 40);
+        geometry.scale(-1, 1, 1); // invertir normales
+        const material = new THREE.MeshBasicMaterial({
+            map: texture,
+            opacity: 0.1, // más bajo = más difuminado
+            transparent: true,
+            depthWrite: false
+        });
+        const backgroundSphere = new THREE.Mesh(geometry, material);
+        scene.add(backgroundSphere);
     });
 
-    // Luz adicional opcional
-    const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 1.2);
+    // Luz adicional
+    const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 1.0);
     hemiLight.position.set(0, 20, 0);
     scene.add(hemiLight);
 
-    // Controles táctiles
+    // Controles
     const controls = new THREE.OrbitControls(camera, renderer.domElement);
     controls.enablePan = true;
     controls.screenSpacePanning = true;
 
-    // Cargar modelo GLTF/GLB
+    // Cargar modelo GLB
     const loader = new THREE.GLTFLoader();
     loader.load('EscenaLagoCalima2.glb', (gltf) => {
         gltf.scene.traverse((node) => {
-            if (node.isMesh) {
-                node.material.envMapIntensity = 1.5; // Mejor respuesta al entorno
+            if (node.isMesh && node.material && node.material.envMapIntensity !== undefined) {
+                node.material.envMapIntensity = 0.5; // intensidad más baja del entorno
                 node.material.needsUpdate = true;
             }
         });
@@ -57,7 +66,7 @@
         gltf.scene.scale.set(1, 1, 1);
         scene.add(gltf.scene);
 
-        // Ajuste automático de cámara
+        // Ajuste de cámara según el modelo
         const bbox = new THREE.Box3().setFromObject(gltf.scene);
         const center = bbox.getCenter(new THREE.Vector3());
         const size = bbox.getSize(new THREE.Vector3());
@@ -68,12 +77,11 @@
     });
 
     // Responsividad
-    function onWindowResize() {
+    window.addEventListener('resize', () => {
         camera.aspect = window.innerWidth / window.innerHeight;
         camera.updateProjectionMatrix();
         renderer.setSize(window.innerWidth, window.innerHeight);
-    }
-    window.addEventListener('resize', onWindowResize);
+    });
 
     // Animación
     function animate() {
