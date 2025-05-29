@@ -4,6 +4,7 @@
     <title>Visualizador Lago de Calima</title>
     <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
 </head>
 <body>
     <script>
@@ -13,15 +14,39 @@
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        // Cambia el nombre del modelo aquí ▼
+        // Luces
+        const light = new THREE.DirectionalLight(0xffffff, 1);
+        light.position.set(1, 1, 1);
+        scene.add(light);
+        scene.add(new THREE.AmbientLight(0x404040));
+
+        // Controles
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.update();
+
+        // Modelo
         const loader = new THREE.GLTFLoader();
-        loader.load('EscenaLagoCalima.glb', (gltf) => {
+        loader.load('./EscenaLagoCalima.glb', (gltf) => {
+            gltf.scene.scale.set(1, 1, 1); // Ajusta escala si es necesario
             scene.add(gltf.scene);
+
+            // Enfocar la cámara en el modelo
+            const bbox = new THREE.Box3().setFromObject(gltf.scene);
+            const center = bbox.getCenter(new THREE.Vector3());
+            camera.position.z = center.z + 5;
+            camera.lookAt(center);
+        }, undefined, (error) => {
+            console.error("Error al cargar el modelo:", error);
         });
 
-        camera.position.z = 5;
+        // Ejes y grilla (opcional)
+        scene.add(new THREE.AxesHelper(5));
+        scene.add(new THREE.GridHelper(10, 10));
+
+        // Animación
         function animate() {
             requestAnimationFrame(animate);
+            controls.update(); // Necesario para OrbitControls
             renderer.render(scene, camera);
         }
         animate();
