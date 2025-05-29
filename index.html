@@ -1,17 +1,25 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Visualizador Lago de Calima</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Visualizador 3D Móvil</title>
     <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/loaders/GLTFLoader.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; }
+        canvas { display: block; }
+    </style>
 </head>
 <body>
     <script>
+        // Escena, cámara y renderer
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        const renderer = new THREE.WebGLRenderer();
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio); // Para pantallas Retina
         document.body.appendChild(renderer.domElement);
 
         // Luces
@@ -20,33 +28,38 @@
         scene.add(light);
         scene.add(new THREE.AmbientLight(0x404040));
 
-        // Controles
+        // Controles táctiles
         const controls = new THREE.OrbitControls(camera, renderer.domElement);
-        controls.update();
+        controls.enablePan = true; // Permite desplazar
+        controls.screenSpacePanning = true; // Mejor para móviles
 
-        // Modelo
+        // Modelo (ajusta la ruta y escala)
         const loader = new THREE.GLTFLoader();
-        loader.load('./EscenaLagoCalima.glb', (gltf) => {
-            gltf.scene.scale.set(0.01, 0.01, 0.01); // Ajusta escala si es necesario
+        loader.load('EscenaLagoCalima.glb', (gltf) => {
+            gltf.scene.scale.set(0.01, 0.01, 0.01);
             scene.add(gltf.scene);
-
-            // Enfocar la cámara en el modelo
+            
+            // Ajuste automático de cámara
             const bbox = new THREE.Box3().setFromObject(gltf.scene);
             const center = bbox.getCenter(new THREE.Vector3());
-            camera.position.z = center.z + 5;
+            const size = bbox.getSize(new THREE.Vector3());
+            camera.position.z = center.z + size.length() * 1.5;
             camera.lookAt(center);
-        }, undefined, (error) => {
-            console.error("Error al cargar el modelo:", error);
+            controls.update();
         });
 
-        // Ejes y grilla (opcional)
-        scene.add(new THREE.AxesHelper(5));
-        scene.add(new THREE.GridHelper(10, 10));
+        // Responsividad
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+        window.addEventListener('resize', onWindowResize);
 
         // Animación
         function animate() {
             requestAnimationFrame(animate);
-            controls.update(); // Necesario para OrbitControls
+            controls.update();
             renderer.render(scene, camera);
         }
         animate();
