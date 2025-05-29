@@ -1,95 +1,101 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Visualizador 3D con Fondo Difuminado</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Visualizador 3D con Fondo Difuminado</title>
 
-    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/loaders/GLTFLoader.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/loaders/EXRLoader.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/loaders/GLTFLoader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/loaders/EXRLoader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
 
-    <style>
-        body { margin: 0; overflow: hidden; background-color: #202020; }
-        canvas { display: block; }
-    </style>
+  <style>
+    body { margin: 0; overflow: hidden; background-color: #202020; }
+    canvas { display: block; }
+  </style>
 </head>
 <body>
 <script>
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(window.devicePixelRatio);
+  document.body.appendChild(renderer.domElement);
+
+  // Cargar imagen EXR
+  const exrLoader = new THREE.EXRLoader();
+  exrLoader.load('Kiara1.exr', function (texture) {
+    texture.mapping = THREE.EquirectangularReflectionMapping;
+    scene.environment = texture;
+
+    // Fondo difuminado con esfera invertida
+    const geometry = new THREE.SphereGeometry(500, 60, 40);
+    geometry.scale(-1, 1, 1);
+    const material = new THREE.MeshBasicMaterial({
+      map: texture,
+      opacity: 0.25,
+      transparent: true,
+      depthWrite: false
+    });
+    const backgroundSphere = new THREE.Mesh(geometry, material);
+    scene.add(backgroundSphere);
+  });
+
+  // Luz de apoyo
+  const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 1.0);
+  hemiLight.position.set(0, 20, 0);
+  scene.add(hemiLight);
+
+  // Controles
+  const controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.enablePan = true;
+  controls.screenSpacePanning = true;
+
+  // Cargar modelo
+  const loader = new THREE.GLTFLoader();
+  loader.load('EscenaLagoCalima2.glb', (gltf) => {
+    gltf.scene.traverse((node) => {
+      if (node.isMesh && node.material && node.material.envMapIntensity !== undefined) {
+        node.material.envMapIntensity = 0.5;
+        node.material.needsUpdate = true;
+      }
+    });
+
+    gltf.scene.scale.set(1, 1, 1);
+    scene.add(gltf.scene);
+
+    // Ajustar cámara y límites de zoom
+    const bbox = new THREE.Box3().setFromObject(gltf.scene);
+    const center = bbox.getCenter(new THREE.Vector3());
+    const size = bbox.getSize(new THREE.Vector3());
+
+    camera.position.set(center.x, center.y, center.z + size.length() * 1.5);
+    camera.lookAt(center);
+    controls.target.copy(center);
+
+    // Limitar zoom para evitar atravesar modelo
+    controls.minDistance = size.length() * 0.2;
+    controls.maxDistance = size.length() * 5;
+
+    controls.update();
+  });
+
+  // Responsividad
+  window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(window.devicePixelRatio);
-    document.body.appendChild(renderer.domElement);
+  });
 
-    // Cargar la imagen EXR
-    const exrLoader = new THREE.EXRLoader();
-    exrLoader.load('Kiara1.exr', function (texture) {
-        texture.mapping = THREE.EquirectangularReflectionMapping;
-        scene.environment = texture;
-
-        // Crear esfera gigante invertida para fondo difuminado
-        const geometry = new THREE.SphereGeometry(500, 60, 40);
-        geometry.scale(-1, 1, 1); // invertir normales
-        const material = new THREE.MeshBasicMaterial({
-            map: texture,
-            opacity: 0.1, // más bajo = más difuminado
-            transparent: true,
-            depthWrite: false
-        });
-        const backgroundSphere = new THREE.Mesh(geometry, material);
-        scene.add(backgroundSphere);
-    });
-
-    // Luz adicional
-    const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 1.0);
-    hemiLight.position.set(0, 20, 0);
-    scene.add(hemiLight);
-
-    // Controles
-    const controls = new THREE.OrbitControls(camera, renderer.domElement);
-    controls.enablePan = true;
-    controls.screenSpacePanning = true;
-
-    // Cargar modelo GLB
-    const loader = new THREE.GLTFLoader();
-    loader.load('EscenaLagoCalima2.glb', (gltf) => {
-        gltf.scene.traverse((node) => {
-            if (node.isMesh && node.material && node.material.envMapIntensity !== undefined) {
-                node.material.envMapIntensity = 0.5; // intensidad más baja del entorno
-                node.material.needsUpdate = true;
-            }
-        });
-
-        gltf.scene.scale.set(1, 1, 1);
-        scene.add(gltf.scene);
-
-        // Ajuste de cámara según el modelo
-        const bbox = new THREE.Box3().setFromObject(gltf.scene);
-        const center = bbox.getCenter(new THREE.Vector3());
-        const size = bbox.getSize(new THREE.Vector3());
-        camera.position.set(center.x, center.y, center.z + size.length() * 1.5);
-        camera.lookAt(center);
-        controls.target.copy(center);
-        controls.update();
-    });
-
-    // Responsividad
-    window.addEventListener('resize', () => {
-        camera.aspect = window.innerWidth / window.innerHeight;
-        camera.updateProjectionMatrix();
-        renderer.setSize(window.innerWidth, window.innerHeight);
-    });
-
-    // Animación
-    function animate() {
-        requestAnimationFrame(animate);
-        controls.update();
-        renderer.render(scene, camera);
-    }
-    animate();
+  // Animación
+  function animate() {
+    requestAnimationFrame(animate);
+    controls.update();
+    renderer.render(scene, camera);
+  }
+  animate();
 </script>
 </body>
 </html>
