@@ -1,108 +1,55 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Lago de Calima 3D</title>
-    <style>
-        body, html {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-        }
-        #renderCanvas {
-            width: 100%;
-            height: 100%;
-            touch-action: none;
-            display: block;
-        }
-        #loading {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            color: white;
-            background: rgba(0, 0, 0, 0.7);
-            padding: 15px;
-            border-radius: 5px;
-            font-family: Arial, sans-serif;
-        }
-    </style>
-    <script src="https://cdn.babylonjs.com/babylon.js"></script>
-    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
-</head>
 <body>
-    <canvas id="renderCanvas"></canvas>
-    <div id="loading">Cargando escena...</div>
-
     <script>
-        // Configuración inicial
-        const canvas = document.getElementById("renderCanvas");
-        const engine = new BABYLON.Engine(canvas, true);
-        const MODEL_PATH = "EscenaLagoCalima2.glb"; // Nombre de tu archivo
+        // Escena, cámara y renderer
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio); // Para pantallas Retina
+        document.body.appendChild(renderer.domElement);
 
-        // Crear escena
-        const createScene = async () => {
-            const scene = new BABYLON.Scene(engine);
-            scene.clearColor = new BABYLON.Color4(0.1, 0.1, 0.2, 1); // Fondo azul oscuro
+        // Luces
+        const light = new THREE.DirectionalLight(0xffffff, 1);
+        light.position.set(1, 1, 1);
+        scene.add(light);
+        scene.add(new THREE.AmbientLight(0x404040));
 
-            // Cámara con límites
-            const camera = new BABYLON.ArcRotateCamera(
-                "camera",
-                -Math.PI / 2, // Ángulo horizontal inicial
-                Math.PI / 3,  // Ángulo vertical inicial
-                15,           // Distancia inicial
-                BABYLON.Vector3.Zero(), // Centro de la escena
-                scene
-            );
-            
-            // Configurar controles de cámara
-            camera.attachControl(canvas, true);
-            camera.lowerRadiusLimit = 5;  // Distancia mínima (evita acercarse demasiado)
-            camera.upperRadiusLimit = 50; // Distancia máxima
-            camera.wheelPrecision = 50;   // Control de zoom suave
-            camera.panningSensibility = 50; // Sensibilidad de desplazamiento
+        // Controles táctiles
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enablePan = true; // Permite desplazar
+        controls.screenSpacePanning = true; // Mejor para móviles
 
-            // Luces
-            new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0), scene);
-            new BABYLON.DirectionalLight("light2", new BABYLON.Vector3(-1, -1, -1), scene);
+        // Modelo (ajusta la ruta y escala)
+        const loader = new THREE.GLTFLoader();
+        loader.load('EscenaLagoCalima2.glb', (gltf) => {
+            gltf.scene.scale.set(0.01, 0.01, 0.01);
+            gltf.scene.scale.set(0.0001, 0.0001, 0.0001);
+            scene.add(gltf.scene);
 
-            // Cargar modelo
-            const loadingDiv = document.getElementById("loading");
-            try {
-                const result = await BABYLON.SceneLoader.ImportMeshAsync(
-                    "", 
-                    "", 
-                    MODEL_PATH, 
-                    scene
-                );
-                
-                // Ajustar cámara al modelo
-                camera.target = result.meshes[0].position;
-                camera.zoomOn(result.meshes);
-                
-                // Opcional: Ajustar sombras y reflejos
-                scene.environmentIntensity = 1;
-                loadingDiv.style.display = "none";
-                
-            } catch (error) {
-                loadingDiv.textContent = `Error: ${error.message}`;
-                console.error("Error al cargar el modelo:", error);
-            }
+            // Ajuste automático de cámara
+            const bbox = new THREE.Box3().setFromObject(gltf.scene);
+            const center = bbox.getCenter(new THREE.Vector3());
+            const size = bbox.getSize(new THREE.Vector3());
+            camera.position.z = center.z + size.length() * 1.5;
+            camera.lookAt(center);
+            controls.update();
+        });
 
-            return scene;
-        };
+        // Responsividad
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+        window.addEventListener('resize', onWindowResize);
 
-        // Inicializar
-        (async () => {
-            const scene = await createScene();
-            engine.runRenderLoop(() => scene.render());
-            
-            // Redimensionar en ventana
-            window.addEventListener("resize", () => engine.resize());
-        })();
+        // Animación
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        animate();
     </script>
 </body>
 </html>
