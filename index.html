@@ -36,7 +36,7 @@
         // Modelo (ajusta la ruta y escala)
         const loader = new THREE.GLTFLoader();
         loader.load('EscenaLagoCalima.glb', (gltf) => {
-            gltf.scene.scale.set(0.0001, 0.0001, 0.0001);
+            gltf.scene.scale.set(1, 1, 1);
             scene.add(gltf.scene);
             
             // Ajuste automático de cámara
