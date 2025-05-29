@@ -4,65 +4,84 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Visualizador 3D Móvil</title>
+
+    <!-- THREE.js y extensiones -->
     <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/loaders/EXRLoader.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
+
     <style>
         body { margin: 0; overflow: hidden; }
         canvas { display: block; }
     </style>
 </head>
 <body>
-    <script>
-        // Escena, cámara y renderer
-        const scene = new THREE.Scene();
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(window.devicePixelRatio); // Para pantallas Retina
-        document.body.appendChild(renderer.domElement);
+<script>
+    // Escena, cámara y renderer
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    document.body.appendChild(renderer.domElement);
 
-        // Luces
-        const light = new THREE.DirectionalLight(0xffffff, 1);
-        light.position.set(1, 1, 1);
-        scene.add(light);
-        scene.add(new THREE.AmbientLight(0x404040));
+    // Cargar imagen EXR como entorno
+    const exrLoader = new THREE.EXRLoader();
+    exrLoader.load('Kiara1.exr', function (texture) {
+        texture.mapping = THREE.EquirectangularReflectionMapping;
+        scene.environment = texture;
+        scene.background = texture; // puedes comentar esta línea si no quieres fondo visible
+    });
 
-        // Controles táctiles
-        const controls = new THREE.OrbitControls(camera, renderer.domElement);
-        controls.enablePan = true; // Permite desplazar
-        controls.screenSpacePanning = true; // Mejor para móviles
+    // Luz adicional opcional
+    const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 1.2);
+    hemiLight.position.set(0, 20, 0);
+    scene.add(hemiLight);
 
-        // Modelo (ajusta la ruta y escala)
-        const loader = new THREE.GLTFLoader();
-        loader.load('EscenaLagoCalima2.glb', (gltf) => {
-            gltf.scene.scale.set(1, 1, 1);
-            scene.add(gltf.scene);
-            
-            // Ajuste automático de cámara
-            const bbox = new THREE.Box3().setFromObject(gltf.scene);
-            const center = bbox.getCenter(new THREE.Vector3());
-            const size = bbox.getSize(new THREE.Vector3());
-            camera.position.z = center.z + size.length() * 1.5;
-            camera.lookAt(center);
-            controls.update();
+    // Controles táctiles
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enablePan = true;
+    controls.screenSpacePanning = true;
+
+    // Cargar modelo GLTF/GLB
+    const loader = new THREE.GLTFLoader();
+    loader.load('EscenaLagoCalima2.glb', (gltf) => {
+        gltf.scene.traverse((node) => {
+            if (node.isMesh) {
+                node.material.envMapIntensity = 1.5; // Mejor respuesta al entorno
+                node.material.needsUpdate = true;
+            }
         });
 
-        // Responsividad
-        function onWindowResize() {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        }
-        window.addEventListener('resize', onWindowResize);
+        gltf.scene.scale.set(1, 1, 1);
+        scene.add(gltf.scene);
 
-        // Animación
-        function animate() {
-            requestAnimationFrame(animate);
-            controls.update();
-            renderer.render(scene, camera);
-        }
-        animate();
-    </script>
+        // Ajuste automático de cámara
+        const bbox = new THREE.Box3().setFromObject(gltf.scene);
+        const center = bbox.getCenter(new THREE.Vector3());
+        const size = bbox.getSize(new THREE.Vector3());
+        camera.position.set(center.x, center.y, center.z + size.length() * 1.5);
+        camera.lookAt(center);
+        controls.target.copy(center);
+        controls.update();
+    });
+
+    // Responsividad
+    function onWindowResize() {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+    window.addEventListener('resize', onWindowResize);
+
+    // Animación
+    function animate() {
+        requestAnimationFrame(animate);
+        controls.update();
+        renderer.render(scene, camera);
+    }
+    animate();
+</script>
 </body>
 </html>
