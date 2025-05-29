@@ -27,7 +27,7 @@
         // Modelo
         const loader = new THREE.GLTFLoader();
         loader.load('./EscenaLagoCalima.glb', (gltf) => {
-            gltf.scene.scale.set(1, 1, 1); // Ajusta escala si es necesario
+            gltf.scene.scale.set(0.01, 0.01, 0.01); // Ajusta escala si es necesario
             scene.add(gltf.scene);
 
             // Enfocar la cámara en el modelo
