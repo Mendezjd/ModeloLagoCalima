@@ -31,7 +31,7 @@ function init() {
 
   // Carga del modelo
   const loader = new GLTFLoader();
-  loader.load('model/tu_modelo.glb', function (gltf) {
+  loader.load('LagoCalimaCelsiafinal.glb', function (gltf) {
     scene.add(gltf.scene);
   }, undefined, function (error) {
     console.error(error);
